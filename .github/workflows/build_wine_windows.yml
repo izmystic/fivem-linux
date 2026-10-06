@@ -88,12 +88,10 @@ jobs:
         run: |
           .\code\tools\ci\build_client.ps1
 
-      - name: Upload caches
+      - name: Upload client
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: fivem-build-output
-          path: |
-            caches/**
-            .build-cache/**
-            code/bin/**
+          name: fivem-client
+          include-hidden-files: true
+          path: caches/fivereborn/**

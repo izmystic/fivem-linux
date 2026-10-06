@@ -63,9 +63,11 @@ try {
         Invoke-RunMSBuild -Context $ctx -Tools $tools
     }.GetNewClosure()
 
-    Invoke-LogSection "Uploading symbols" {
-        Invoke-UploadClientSymbols -Context $ctx -Tools $tools
-    }.GetNewClosure()
+    if (!$ctx.IsDryRun) {
+        Invoke-LogSection "Uploading symbols" {
+            Invoke-UploadClientSymbols -Context $ctx -Tools $tools
+        }.GetNewClosure()
+    }
 
     Invoke-LogSection "Building UI" {
         Invoke-BuildUI -Context $ctx -Versions $versions
