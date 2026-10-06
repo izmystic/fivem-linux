@@ -192,8 +192,7 @@ extern "C" void DLL_EXPORT CoreRT_SetupSEHHandler(void* moduleBase, void* module
 
 	if (baseAddress && GetModuleHandle(L"xtajit64.dll") == nullptr)
 	{
-		// Wine's ntdll layout differs from real ntdll, so this scan can land on an unrelated function
-		void* internalAddress = CfxIsWine() ? nullptr : FindCallFromAddress(baseAddress);
+		void* internalAddress = FindCallFromAddress(baseAddress);
 
 		void* patchFunction = RtlpxLookupFunctionTableOverride;
 		void** patchOriginal = (void**)&g_originalLookup;
@@ -473,17 +472,11 @@ extern "C" void DLL_EXPORT CoreSetExceptionOverride(LONG (*handler)(EXCEPTION_PO
 
 	if (baseAddress)
 	{
-		// Wine's KiUserExceptionDispatcher may not call RtlDispatchException first, so the scan could hook the wrong function
-		void* internalAddress = CfxIsWine() ? nullptr : FindCallFromAddress(baseAddress, UD_Icall, true);
+		void* internalAddress = FindCallFromAddress(baseAddress, UD_Icall, true);
 
 		{
 			DisableToolHelpScope scope;
-
-			if (internalAddress)
-			{
-				MH_CreateHook(internalAddress, RtlDispatchExceptionStub, (void**)&g_origRtlDispatchException);
-			}
-
+			MH_CreateHook(internalAddress, RtlDispatchExceptionStub, (void**)&g_origRtlDispatchException);
 			MH_CreateHook(GetProcAddress(GetModuleHandle(L"ucrtbase.dll"), "terminate"), terminateStub, NULL);
 			MH_CreateHookApi(L"ntdll.dll", "RtlReportException", RtlReportExceptionStub, (void**)&g_origRtlReportException);
 			MH_EnableHook(MH_ALL_HOOKS);
