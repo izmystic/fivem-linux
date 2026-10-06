@@ -88,6 +88,27 @@ jobs:
         run: |
           .\code\tools\ci\build_client.ps1
 
+      # data/redist/crt ships an older runtime than the runner's compiler, and code built with MSVC 14.40+ crashes on an older msvcp140 (constexpr std::mutex/condition_variable)
+      - name: Bundle matching VC++ runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsDir = & $vswhere -latest -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $redistVersion = (Get-Content "$vsDir\VC\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt" | Select-Object -First 1).Trim()
+          $crtDir = Get-ChildItem "$vsDir\VC\Redist\MSVC\$redistVersion\x64" -Directory -Filter 'Microsoft.VC*.CRT' | Select-Object -First 1
+
+          if (-not $crtDir) {
+            throw "No VC++ runtime found under '$vsDir\VC\Redist\MSVC\$redistVersion\x64'."
+          }
+
+          Copy-Item -Force "$($crtDir.FullName)\*.dll" caches\fivereborn\bin\
+
+          Write-Host "Bundled VC++ runtime $redistVersion from $($crtDir.FullName)"
+          Get-ChildItem caches\fivereborn\bin\msvcp140.dll, caches\fivereborn\bin\vcruntime140.dll |
+            ForEach-Object { Write-Host "$($_.Name) $($_.VersionInfo.FileVersion)" }
+
       - name: Upload client
         uses: actions/upload-artifact@v4
         if: always()
