@@ -21,6 +21,8 @@
 
 #include <MinHook.h>
 
+#include <LaunchMode.h>
+
 static NTSTATUS(NTAPI* g_origRtlRaiseException)(_In_ PEXCEPTION_RECORD ExceptionRecord);
 static BOOL(NTAPI* g_origZwQueryDebugFilterState)(_In_ ULONG ComponentId, _In_ ULONG Level);
 
@@ -37,7 +39,8 @@ struct HardErrorScope
 
 		// 19H1, Vb and Mn seem to adhere to this memory layout.
 		// Not sure about Fe and above, so taking out 20000.
-		if (osBuildNumber >= 18362 && osBuildNumber < 19628)
+		// Wine reports a build in this range, but its _fltused is a stub in read-only .text with no LdrpDebugFlags before it
+		if (osBuildNumber >= 18362 && osBuildNumber < 19628 && !CfxIsWine())
 		{
 			auto fltUsed = (char*)GetProcAddress(GetModuleHandle(L"ntdll.dll"), "_fltused");
 			m_oldLdrFlags = *(int*)(fltUsed - 16);
