@@ -176,7 +176,7 @@ workspace "CitizenMP"
 
 		buildoptions { '/Zc:preprocessor' }
 
-		systemversion '10.0.22000.0'
+		systemversion(os.getenv('CFX_WINDOWS_SDK') or '10.0.22000.0')
 	else
 		vectorextensions 'SSSE3'
 	end
