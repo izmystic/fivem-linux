@@ -591,7 +591,9 @@ void NUIWindow::UpdateFrame()
 
 			if (m_client)
 			{
-				if (!m_nuiTexture.GetRef())
+				// without shared textures (Wine), nothing else replaces the backing texture on resize, and copying
+				// a frame of the new size into the old texture wraps rows and misplaces the whole UI
+				if (!m_nuiTexture.GetRef() || m_renderBuffer)
 				{
 					std::unique_lock _(m_textureMutex);
 					m_nuiTexture = g_nuiGi->CreateTextureBacking(m_width, m_height, nui::GITextureFormat::ARGB);
