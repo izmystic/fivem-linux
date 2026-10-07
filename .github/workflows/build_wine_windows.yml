@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -116,3 +116,36 @@ jobs:
           name: fivem-client
           include-hidden-files: true
           path: caches/fivereborn/**
+
+      - name: Package release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $stage = Join-Path $env:RUNNER_TEMP 'release\FiveM'
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item -Recurse -Force caches\fivereborn\* $stage
+
+          Move-Item (Join-Path $stage 'CitizenFX.exe') (Join-Path $stage 'FiveM.exe')
+          # an empty FiveM.exe.formaldev makes the launcher skip its update check, which would otherwise replace these files with the official build
+          New-Item -ItemType File (Join-Path $stage 'FiveM.exe.formaldev') | Out-Null
+
+          7z a -tzip fivem-client.zip $stage
+          if ($LASTEXITCODE -ne 0) { throw "7z failed with exit code $LASTEXITCODE" }
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $tag = "build-${{ github.run_number }}"
+          $shortSha = "${{ github.sha }}".Substring(0, 9)
+
+          gh release create $tag fivem-client.zip `
+            --target "${{ github.sha }}" `
+            --title "Build ${{ github.run_number }} ($shortSha)" `
+            --notes "FiveM client built from ${{ github.sha }}. Extract the FiveM folder and follow https://izmystic.dev/blog/fivem-on-linux" `
+            --latest
+          if ($LASTEXITCODE -ne 0) { throw "gh release create failed with exit code $LASTEXITCODE" }
