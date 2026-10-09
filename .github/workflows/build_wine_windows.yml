@@ -143,9 +143,33 @@ jobs:
           $tag = "build-${{ github.run_number }}"
           $shortSha = "${{ github.sha }}".Substring(0, 9)
 
+          $notes = @("FiveM client built from ${{ github.sha }}. Extract the FiveM folder and follow https://izmystic.dev/blog/fivem-on-linux")
+
+          $previous = gh release list --limit 1 --exclude-drafts --json tagName | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "gh release list failed with exit code $LASTEXITCODE" }
+
+          if ($previous) {
+            $previousTag = $previous[0].tagName
+            $compare = gh api "repos/${{ github.repository }}/compare/$previousTag...${{ github.sha }}" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw "gh api compare failed with exit code $LASTEXITCODE" }
+
+            $notes += ""
+            $notes += "## Changes since $previousTag"
+            $notes += ""
+            foreach ($commit in $compare.commits) {
+              $subject = ($commit.commit.message -split "`n")[0]
+              $notes += "- $subject ($($commit.sha.Substring(0, 9)))"
+            }
+            $notes += ""
+            $notes += "**Full changelog:** https://github.com/${{ github.repository }}/compare/$previousTag...$tag"
+          }
+
+          $notesFile = Join-Path $env:RUNNER_TEMP 'release-notes.md'
+          $notes -join "`n" | Set-Content -Encoding utf8 $notesFile
+
           gh release create $tag fivem-client.zip `
             --target "${{ github.sha }}" `
             --title "Build ${{ github.run_number }} ($shortSha)" `
-            --notes "FiveM client built from ${{ github.sha }}. Extract the FiveM folder and follow https://izmystic.dev/blog/fivem-on-linux" `
+            --notes-file $notesFile `
             --latest
           if ($LASTEXITCODE -ne 0) { throw "gh release create failed with exit code $LASTEXITCODE" }
