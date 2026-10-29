@@ -94,6 +94,8 @@ namespace nui
 
 		virtual void* GetNativeTexture() = 0;
 
+		virtual void* GetNativeSRV() = 0;
+
 		virtual void* GetHostTexture() = 0;
 
 		virtual bool Map(int numSubLevels, int subLevel, GILockedTexture* lockedTexture, GILockFlags flags) = 0;
@@ -152,18 +154,22 @@ namespace nui
 	class OVERLAY_DECL GameInterface
 	{
 	public:
+		using UpdateTextureCB = std::function<bool()>;
+
 		virtual void GetGameResolution(int* width, int* height) = 0;
 
 		virtual fwRefContainer<GITexture> CreateTexture(int width, int height, GITextureFormat format, void* pixelData) = 0;
 
 		virtual fwRefContainer<GITexture> CreateTextureBacking(int width, int height, GITextureFormat format) = 0;
 
-		virtual fwRefContainer<GITexture> CreateTextureFromShareHandle(HANDLE shareHandle) = 0;
+		virtual fwRefContainer<GITexture> CreateTextureFromShareHandle(HANDLE shareHandle, UpdateTextureCB cb = nullptr) = 0;
 
-		virtual fwRefContainer<GITexture> CreateTextureFromShareHandle(HANDLE shareHandle, int width, int height)
+		virtual fwRefContainer<GITexture> CreateTextureFromShareHandle(HANDLE shareHandle, int width, int height, UpdateTextureCB cb = nullptr)
 		{
 			return CreateTextureFromShareHandle(shareHandle);
 		}
+
+		virtual void UpdateTexture(HANDLE shareHandle, fwRefContainer<GITexture> texture, int width, int height, std::pair<uint64_t, uint64_t> key, UpdateTextureCB cb = nullptr) = 0;
 
 		virtual void SetTexture(fwRefContainer<GITexture> texture, bool pm = false) = 0;
 
@@ -379,6 +385,10 @@ namespace nui
 	void OVERLAY_DECL PostFrameMessage(const std::string& frameName, const std::string& jsonData);
 
 	void OVERLAY_DECL PostRootMessage(const std::string& jsonData);
+
+	void OVERLAY_DECL SetHandoverData(const std::string& jsonData);
+
+	void OVERLAY_DECL SetServerAddress(const std::string& serverAddress);
 
 #ifdef WANT_CEF_INTERNALS
 	OVERLAY_DECL CefBrowser* GetBrowser();

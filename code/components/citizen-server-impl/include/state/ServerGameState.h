@@ -1300,6 +1300,11 @@ public:
 	{
 		syncedEntities.emplace_back(handle, clientEntityData);
 	}
+
+	void Reserve(size_t count)
+	{
+		syncedEntities.reserve(count);
+	}
 	
 	void Sort()
 	{
@@ -1366,6 +1371,11 @@ struct SyncedEntityData
 
 constexpr auto maxSavedClientFrames = 650; // enough for ~8-9 seconds, after 5 we'll start using worst-case frames
 constexpr auto maxSavedClientFramesWorstCase = (60000 / 15); // enough for ~60 seconds
+
+inline bool ShouldUseWorstCaseFrameBacklog(const std::chrono::milliseconds now, const std::chrono::milliseconds lastSeen)
+{
+	return now > lastSeen && (now - lastSeen) > 5s;
+}
 
 struct GameStateClientData
 {
@@ -1579,6 +1589,8 @@ private:
 
 	bool ValidateEntity(EntityLockdownMode entityLockdownMode, const fx::sync::SyncEntityPtr& entity);
 
+	void HandlePedHealthUpdate(const fx::sync::SyncEntityPtr& entity, fx::sync::CPedHealthNodeData* healthNode, int oldHealth, int oldArmour);
+
 public:
 	std::unordered_set<uint32_t> blockedEvents;
 	std::shared_mutex blockedEventsMutex;
@@ -1597,6 +1609,16 @@ public:
 
 private:
 	fx::ServerInstanceBase* m_instance;
+
+	enum PedEventFlags : uint32_t
+	{
+		PedEventHealthChanged = 1 << 0,
+		PedEventDeath = 1 << 1,
+	};
+
+	// updated when a resource registers a handler, so the sync parse path only needs an
+	// atomic read instead of a lookup in the event registry
+	std::atomic<uint32_t> m_pedEventFlags{ 0 };
 
 #ifdef USE_ASYNC_SCL_POSTING
 	std::unique_ptr<ThreadPool> m_tg;
